@@ -1,0 +1,149 @@
+@import "katex/dist/katex.min.css";
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --surface: 250 250 249; /* stone-50 */
+  --surface-raised: 255 255 255;
+  --surface-sunken: 245 245 244;
+  --ink: 28 25 23; /* stone-900 */
+  --ink-muted: 87 83 78; /* stone-600 */
+  --ink-faint: 168 162 158; /* stone-400 */
+  --line: 231 229 228; /* stone-200 */
+  --accent: 79 70 229; /* indigo-600 */
+  --accent-soft: 238 242 255; /* indigo-50 */
+  --accent-ink: 255 255 255;
+}
+
+.dark {
+  --surface: 21 21 24;
+  --surface-raised: 30 30 34;
+  --surface-sunken: 16 16 18;
+  --ink: 240 240 238;
+  --ink-muted: 168 168 172;
+  --ink-faint: 110 110 116;
+  --line: 48 48 54;
+  --accent: 129 140 248; /* indigo-400 */
+  --accent-soft: 40 41 61;
+  --accent-ink: 21 21 24;
+}
+
+html,
+body {
+  height: 100%;
+}
+
+body {
+  @apply bg-surface text-ink antialiased;
+  font-feature-settings: "cv02", "cv03", "cv04";
+}
+
+/* Focus visibility for accessibility */
+:focus-visible {
+  outline: 2px solid rgb(var(--accent));
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* Thin, theme-aware scrollbars */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgb(var(--ink-faint) / 0.4) transparent;
+}
+*::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+*::-webkit-scrollbar-thumb {
+  background: rgb(var(--ink-faint) / 0.4);
+  border-radius: 8px;
+}
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+/* ── Markdown content ─────────────────────────────────────────────────────── */
+.prose-tutor {
+  @apply text-[15px] leading-7;
+  overflow-wrap: break-word;
+}
+.prose-tutor > * + * {
+  margin-top: 0.75em;
+}
+.prose-tutor h1,
+.prose-tutor h2,
+.prose-tutor h3,
+.prose-tutor h4 {
+  @apply font-semibold text-ink;
+  margin-top: 1.25em;
+}
+.prose-tutor h1 { @apply text-xl; }
+.prose-tutor h2 { @apply text-lg; }
+.prose-tutor h3 { @apply text-base; }
+.prose-tutor ul { @apply list-disc pl-6 space-y-1; }
+.prose-tutor ol { @apply list-decimal pl-6 space-y-1; }
+.prose-tutor li > ul,
+.prose-tutor li > ol { margin-top: 0.25em; }
+.prose-tutor a { @apply text-accent underline underline-offset-2; }
+.prose-tutor blockquote {
+  @apply border-l-2 border-accent/50 pl-4 text-ink-muted italic;
+}
+.prose-tutor hr { @apply border-line my-4; }
+.prose-tutor strong { @apply font-semibold; }
+.prose-tutor code {
+  @apply rounded bg-surface-sunken px-1.5 py-0.5 text-[13px] font-mono border border-line;
+}
+.prose-tutor pre {
+  @apply rounded-xl bg-surface-sunken border border-line p-4 overflow-x-auto text-[13px] leading-6;
+}
+.prose-tutor pre code {
+  @apply bg-transparent border-0 p-0;
+}
+.prose-tutor table {
+  @apply w-full text-sm border-collapse block overflow-x-auto whitespace-nowrap md:table md:whitespace-normal;
+}
+.prose-tutor th {
+  @apply border-b-2 border-line px-3 py-2 text-left font-semibold;
+}
+.prose-tutor td {
+  @apply border-b border-line px-3 py-2 align-top;
+}
+.prose-tutor .katex-display {
+  @apply overflow-x-auto overflow-y-hidden py-1;
+}
+.prose-tutor img { @apply max-w-full rounded-lg; }
+
+/* highlight.js — minimal theme-aware syntax colors */
+.hljs-keyword, .hljs-selector-tag, .hljs-literal { color: rgb(var(--accent)); }
+.hljs-string, .hljs-attr, .hljs-template-variable { color: #16a34a; }
+.dark .hljs-string, .dark .hljs-attr { color: #4ade80; }
+.hljs-number, .hljs-symbol { color: #d97706; }
+.dark .hljs-number, .dark .hljs-symbol { color: #fbbf24; }
+.hljs-comment, .hljs-quote { color: rgb(var(--ink-faint)); font-style: italic; }
+.hljs-title, .hljs-name, .hljs-function .hljs-title { color: #0891b2; }
+.dark .hljs-title, .dark .hljs-name { color: #22d3ee; }
+
+/* Streaming caret */
+.stream-caret::after {
+  content: "▍";
+  @apply text-accent;
+  animation: caret-blink 1s steps(2) infinite;
+}
+@keyframes caret-blink {
+  50% { opacity: 0; }
+}
+
+/* Flashcard flip */
+.flip-scene { perspective: 1200px; }
+.flip-inner {
+  transform-style: preserve-3d;
+  transition: transform 0.45s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+.flip-inner.flipped { transform: rotateY(180deg); }
+.flip-face {
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+}
+.flip-back { transform: rotateY(180deg); }
