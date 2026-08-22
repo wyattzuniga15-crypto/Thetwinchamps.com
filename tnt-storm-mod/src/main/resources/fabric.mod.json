@@ -1,0 +1,25 @@
+{
+  "schemaVersion": 1,
+  "id": "tntstorm",
+  "version": "${version}",
+  "name": "TNT Storm",
+  "description": "Adds the TNT Storm item: right-click to drop 200 primed vanilla TNT on the block you are looking at.",
+  "authors": [
+    "The Twin Champs"
+  ],
+  "contact": {},
+  "license": "MIT",
+  "icon": "assets/tntstorm/icon.png",
+  "environment": "*",
+  "entrypoints": {
+    "main": [
+      "com.thetwinchamps.tntstorm.TntStorm"
+    ]
+  },
+  "depends": {
+    "fabricloader": ">=0.16.0",
+    "minecraft": "~1.21.1",
+    "java": ">=21",
+    "fabric-api": "*"
+  }
+}
