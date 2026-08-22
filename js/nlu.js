@@ -257,11 +257,37 @@ export class NLU {
 
     // ---- put / place / move / bring / set / drop
     if (/^(?:put|place|set|move|bring|drop|leave) /.test(c) || /^(?:actually,? )?(?:move|put) /.test(c)) {
-      let obj = this.resolveObject(c);
+      // resolve the object from the words BEFORE the destination preposition,
+      // so "move the chair next to the couch" targets the chair, not the couch
+      const seg = c.match(/^(?:actually,? )?(?:put|place|set|move|bring|drop|leave) (?:the |her |that |this |my )?(.+?)(?: (?:to|on|onto|in|into|inside|next|near|by|beside|over|toward|towards|down|back|there)\b.*)?$/);
+      let obj = seg ? this.resolveObject(seg[1]) : null;
+      if (!obj) obj = this.resolveObject(c);
       const held = ag.char.heldItem();
       // "put it ..." → held item or last mentioned
-      if (!obj || (!obj.holdable && held)) obj = held || this.heldOrLast();
+      if (!obj || (!obj.holdable && !obj.holdableHeavy && held)) obj = held || this.heldOrLast();
       if (!obj) return { fail: { text: 'Move what? Point me at a thing.', emotion: 'confused' } };
+      if (!obj.holdable && obj.holdableHeavy) {
+        // heavy things get dragged/pushed rather than carried
+        this.lastObjectId = obj.id;
+        let pt = null;
+        const destRec = this.resolvePlace(c);
+        if (destRec && destRec.targetId) {
+          const target = w.get(destRec.targetId);
+          const ap = ag.approachPoint(target);
+          pt = { x: ap.x, z: ap.z };
+        } else {
+          const near = c.match(/(?:to|toward|towards|next to|near|by|over to) (?:the |her )?([a-z ]+)/);
+          if (near) {
+            const target = this.resolveObject(near[1] + ' ');
+            if (target) { const ap = ag.approachPoint(target); pt = { x: ap.x, z: ap.z }; }
+          }
+        }
+        if (!pt) return { fail: { text: `Where should I drag the ${obj.name} to?`, emotion: 'curious' } };
+        return {
+          actions: [{ type: 'goToObj', id: obj.id }, { type: 'push', id: obj.id, x: pt.x, z: pt.z }],
+          reply: { text: pick(['Okay — it\'s heavier than it looks, but fine.', 'Sure, let me drag it over.']), emotion: null }
+        };
+      }
       if (!obj.holdable) return { fail: { text: `The ${obj.name} isn't really something I can carry.`, emotion: 'amused' } };
       this.lastObjectId = obj.id;
 

@@ -291,6 +291,43 @@ export class Agent {
         return false;
       }
 
+      case 'push': { // drag a heavy object (chair) to a target point
+        const rec = w.get(a.id);
+        if (!rec) return true;
+        const p = c.root.position;
+        const dx = a.x - p.x, dz = a.z - p.z;
+        const dist = Math.hypot(dx, dz);
+        // lean into it and keep both hands on the object
+        const op = this.objPos(a.id);
+        c.stoop = 0.35;
+        c.reach('right', op.clone().setY(0.75));
+        c.reach('left', op.clone().setY(0.75));
+        c.setLook(op);
+        if (dist < 0.3) {
+          c.stoop = 0;
+          c.relaxArm('left'); c.relaxArm('right'); c.setLook(null);
+          // keep its sittable spot in sync with the new position
+          if (rec.sittable) {
+            const np = rec.mesh.position;
+            rec.sittable.spots[0].x = np.x; rec.sittable.spots[0].z = np.z;
+            rec.sittable.approach = { x: np.x - Math.sin(c.root.rotation.y) * 0.5, z: np.z - Math.cos(c.root.rotation.y) * 0.5 };
+          }
+          this.memory.logEvent(`moved the ${rec.name}`);
+          return true;
+        }
+        this._faceToward(a.x, a.z, dt, 6);
+        const sp = Math.min(0.6, dist);
+        c.speed = sp * 0.8;
+        p.x += (dx / dist) * sp * dt;
+        p.z += (dz / dist) * sp * dt;
+        // the object slides along just in front of her
+        const f = new T.Vector3(Math.sin(c.root.rotation.y), 0, Math.cos(c.root.rotation.y));
+        rec.mesh.position.set(
+          T.MathUtils.clamp(p.x + f.x * 0.48, -3.8, 3.8), rec.mesh.position.y,
+          T.MathUtils.clamp(p.z + f.z * 0.48, -2.8, 2.8));
+        return false;
+      }
+
       case 'throw': {
         const rec = w.get(a.id);
         if (!rec || c.heldItem() !== rec) return true;
