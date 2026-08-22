@@ -249,6 +249,12 @@ async function handleUtterance(text, channel) {
   // conversational
   const r = await dialogue.respond(text);
   respond(r);
+  // if a key is set but the brain couldn't be reached, say so once instead of failing silently
+  if (dialogue.apiKey && dialogue.brainError && !state.brainToastShown) {
+    state.brainToastShown = true;
+    toast('⚠️ Couldn\'t reach the Claude brain — if you\'re on the claude.ai link, that page blocks outside connections. Use your own hosted link for the real AI.');
+    dialogue.brainError = null;
+  }
 }
 
 // ============================================================ call management
@@ -633,15 +639,25 @@ $('btn-settings').addEventListener('click', () => {
   $('set-apikey').value = dialogue.apiKey || '';
   $('settings').classList.remove('hidden');
 });
-$('settings-close').addEventListener('click', () => {
+$('settings-close').addEventListener('click', async () => {
   state.settings.tts = $('set-tts').checked;
   state.settings.captions = $('set-captions').checked;
   state.settings.incoming = $('set-incoming').checked;
   const key = $('set-apikey').value.trim();
+  const keyChanged = key !== (dialogue.apiKey || '');
   dialogue.apiKey = key || null;
   try { key ? localStorage.setItem(KEY_KEY, key) : localStorage.removeItem(KEY_KEY); } catch (e) { /* noop */ }
   $('settings').classList.add('hidden');
   save();
+  // test a new key right away so a dead brain is never a silent mystery
+  if (key && keyChanged) {
+    toast('Testing your API key…');
+    const t = await dialogue.testKey();
+    if (t.ok) toast('✅ Claude brain connected! Aria just got a lot smarter.');
+    else if (t.why === 'badkey') toast('❌ That API key was rejected — double-check it at console.anthropic.com.');
+    else if (t.why === 'blocked') toast('⚠️ This page can\'t reach the AI service — claude.ai artifact pages block outside connections. Play on your own site (e.g. GitHub Pages) for the Claude brain.');
+    else toast(`⚠️ The AI service returned an error (${t.why}). Check billing/credit on your account.`);
+  }
 });
 $('btn-reset-world').addEventListener('click', () => {
   if (confirm('Reset Aria\'s world and all memories? This cannot be undone.')) {

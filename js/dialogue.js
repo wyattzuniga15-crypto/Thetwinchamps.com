@@ -176,9 +176,10 @@ export class Dialogue {
     if (this.apiKey) {
       try {
         const out = await this._askClaude(rawText);
-        if (out) return out;
+        if (out) { this.brainError = null; return out; }
       } catch (e) {
         console.warn('Claude API fallback:', e);
+        this.brainError = String(e && e.message || e);
       }
     }
     return this._localFallback(rawText);
@@ -205,6 +206,28 @@ export class Dialogue {
         "Mm-hm, I'm listening!! This is the most interesting thing that's happened in here all day, no pressure.",
       ]), emotion: 'curious'
     };
+  }
+
+  // quick connectivity check for a freshly entered key — tells the player
+  // immediately whether the Claude brain can actually be reached from here
+  async testKey() {
+    try {
+      const res = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/json',
+          'x-api-key': this.apiKey,
+          'anthropic-version': '2023-06-01',
+          'anthropic-dangerous-direct-browser-access': 'true',
+        },
+        body: JSON.stringify({ model: 'claude-opus-5', max_tokens: 3, messages: [{ role: 'user', content: 'hi' }] })
+      });
+      if (res.status === 401 || res.status === 403) return { ok: false, why: 'badkey' };
+      if (!res.ok) return { ok: false, why: 'http' + res.status };
+      return { ok: true };
+    } catch (e) {
+      return { ok: false, why: 'blocked' }; // network/CSP — this host can't reach the API
+    }
   }
 
   // ---------- optional Claude API brain ----------
