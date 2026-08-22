@@ -41,8 +41,9 @@ renderer.setPixelRatio(Math.min(1.5, window.devicePixelRatio)); // keep frame ra
 const camera = new T.PerspectiveCamera(55, 1, 0.05, 30);
 camera.position.set(0, 1.5, 2);
 
-// soft "phone screen" glow that lights her face during calls
-const screenGlow = new T.PointLight(0xbfd4ff, 0, 2.2, 2);
+// soft "phone screen" glow that lights her face during calls — doubles as a gentle
+// beauty fill so the video call doesn't look flatly lit
+const screenGlow = new T.PointLight(0xd9e8ff, 0, 3, 1.8);
 world.scene.add(screenGlow);
 
 function resize() {
@@ -690,7 +691,7 @@ function frame(now) {
     // the video feed appears only once Aria has picked up
     if (state.callConnected) {
       screenGlow.position.copy(camera.position);
-      screenGlow.intensity = 0.55;
+      screenGlow.intensity = 0.9;
       renderer.render(world.scene, camera);
     } else {
       screenGlow.intensity = 0;
@@ -700,7 +701,7 @@ function frame(now) {
 }
 
 // debug handle (console access)
-window.__G = { world, char, agent, nlu, dialogue, memory, state, camera };
+window.__G = { world, char, agent, nlu, dialogue, memory, state, camera, renderer };
 
 // ============================================================ go
 try { dialogue.apiKey = localStorage.getItem(KEY_KEY) || null; } catch (e) { /* noop */ }

@@ -14,16 +14,31 @@ const BOOT = 0x8a5a3c;
 const SOLE = 0xe8e0d2;
 
 function mat(c, r = 0.75, m = 0) { return new T.MeshStandardMaterial({ color: c, roughness: r, metalness: m }); }
-function limb(rTop, rBot, len, material, seg = 10) {
+function skinMat(c, r = 0.55) {
+  // a soft physical material for skin — a faint clearcoat + sheen reads as smooth, lightly dewy skin
+  return new T.MeshPhysicalMaterial({
+    color: c, roughness: r, clearcoat: 0.2, clearcoatRoughness: 0.38,
+    sheen: 0.22, sheenRoughness: 0.6, sheenColor: new T.Color(0xffe3c8),
+  });
+}
+function limb(rTop, rBot, len, material, seg = 18) {
   const g = new T.Mesh(new T.CylinderGeometry(rTop, rBot, len, seg), material);
   g.position.y = -len / 2;
   g.castShadow = true; g.receiveShadow = true;
   return g;
 }
-function ball(r, material, w = 12, h = 10) {
+function ball(r, material, w = 18, h = 14) {
   const m = new T.Mesh(new T.SphereGeometry(r, w, h), material);
   m.castShadow = true;
   return m;
+}
+// a soft, rounded lip shape (baked rotation/flatten so it behaves like a plain
+// box for animation — scale.x still widens it for a smile, as the box did)
+function lipGeo(len, rad, depth = 0.6) {
+  const g = new T.CapsuleGeometry(rad, len, 3, 8);
+  g.rotateZ(Math.PI / 2);
+  g.scale(1, 1, depth);
+  return g;
 }
 
 export class Character {
@@ -61,37 +76,40 @@ export class Character {
   // ============ construction ============
   _build() {
     const R = this.root;
-    const skin = mat(SKIN, 0.6);
+    const skin = skinMat(SKIN, 0.58);
     const top = mat(TOP, 0.85);
     const shorts = mat(SHORTS, 0.9);
 
     // -- pelvis / torso
     this.pelvis = new T.Group(); this.pelvis.position.y = 0.94; R.add(this.pelvis);
-    const hipMesh = new T.Mesh(new T.SphereGeometry(0.155, 14, 10), shorts);
+    const hipMesh = new T.Mesh(new T.SphereGeometry(0.155, 22, 16), shorts);
     hipMesh.scale.set(1.08, 0.72, 0.82); hipMesh.castShadow = true;
     this.pelvis.add(hipMesh);
     // belt
-    const belt = new T.Mesh(new T.CylinderGeometry(0.152, 0.152, 0.045, 16), mat(BELT, 0.6));
+    const belt = new T.Mesh(new T.CylinderGeometry(0.152, 0.152, 0.045, 22), mat(BELT, 0.6));
     belt.scale.z = 0.8; belt.position.y = 0.075; this.pelvis.add(belt);
     const buckle = new T.Mesh(new T.BoxGeometry(0.05, 0.032, 0.015), mat(0xc9b26a, 0.3, 0.7));
     buckle.position.set(0, 0.075, 0.124); this.pelvis.add(buckle);
 
     this.spine = new T.Group(); this.spine.position.y = 0.1; this.pelvis.add(this.spine);
-    // bare midriff
-    const belly = new T.Mesh(new T.CylinderGeometry(0.122, 0.142, 0.22, 14), skin);
-    belly.position.y = 0.1; belly.castShadow = true; this.spine.add(belly);
+    // bare midriff — same z-flatten factor as the chest above it, so the two
+    // cylinders meet as a continuous oval cross-section with no visible seam
+    const belly = new T.Mesh(new T.CylinderGeometry(0.122, 0.142, 0.22, 22), skin);
+    belly.position.y = 0.1; belly.scale.z = 0.85; belly.castShadow = true; this.spine.add(belly);
 
     this.chest = new T.Group(); this.chest.position.y = 0.24; this.spine.add(this.chest);
-    const chestMesh = new T.Mesh(new T.CylinderGeometry(0.148, 0.135, 0.24, 14), top);
-    chestMesh.position.y = 0.09; chestMesh.scale.z = 0.78; chestMesh.castShadow = true;
+    // bottom radius matches the belly cylinder's top radius exactly (both at the
+    // same 0.85 z-flatten) so the two pieces meet as one continuous taper
+    const chestMesh = new T.Mesh(new T.CylinderGeometry(0.148, 0.122, 0.25, 22), top);
+    chestMesh.position.y = 0.08; chestMesh.scale.z = 0.85; chestMesh.castShadow = true;
     this.chest.add(chestMesh);
     this.chestMesh = chestMesh;
-    // crop-top hem
-    const hem = new T.Mesh(new T.CylinderGeometry(0.139, 0.146, 0.03, 14), mat(0xe3d9c2, 0.85));
-    hem.position.y = -0.025; hem.scale.z = 0.78; this.chest.add(hem);
+    // crop-top hem — sits right at the skin/garment boundary, just above the midriff
+    const hem = new T.Mesh(new T.CylinderGeometry(0.125, 0.132, 0.03, 22), mat(0xe3d9c2, 0.85));
+    hem.position.y = -0.05; hem.scale.z = 0.85; this.chest.add(hem);
     // shoulders (bare)
     for (const s of [-1, 1]) {
-      const sh = new T.Mesh(new T.SphereGeometry(0.058, 10, 8), skin);
+      const sh = new T.Mesh(new T.SphereGeometry(0.058, 16, 12), skin);
       sh.position.set(s * 0.163, 0.2, 0); sh.castShadow = true; this.chest.add(sh);
       // top strap
       const strap = new T.Mesh(new T.BoxGeometry(0.035, 0.1, 0.02), top);
@@ -102,34 +120,36 @@ export class Character {
     chain.position.set(0, 0.2, 0.075); chain.rotation.x = 1.25; chain.rotation.z = Math.PI; this.chest.add(chain);
 
     // -- neck & head (slightly bigger head — cute proportions)
-    this.neck = new T.Group(); this.neck.position.y = 0.235; this.chest.add(this.neck);
-    const neckMesh = new T.Mesh(new T.CylinderGeometry(0.044, 0.05, 0.09, 10), skin);
-    neckMesh.position.y = 0.03; this.neck.add(neckMesh);
+    this.neck = new T.Group(); this.neck.position.y = 0.22; this.chest.add(this.neck);
+    // widens slightly toward the base so it visually settles into the shoulders
+    // instead of sitting on top of the chest like a separate stacked piece
+    const neckMesh = new T.Mesh(new T.CylinderGeometry(0.044, 0.062, 0.11, 18), skin);
+    neckMesh.position.y = 0.025; this.neck.add(neckMesh);
 
     this.head = new T.Group(); this.head.position.y = 0.09; this.neck.add(this.head);
-    const skull = new T.Mesh(new T.SphereGeometry(0.108, 24, 18), skin);
+    const skull = new T.Mesh(new T.SphereGeometry(0.108, 36, 28), skin);
     skull.position.y = 0.088; skull.scale.set(0.95, 1.07, 1.0); skull.castShadow = true;
     this.head.add(skull);
     // jaw / chin
     this.jaw = new T.Group(); this.jaw.position.set(0, 0.045, 0.012); this.head.add(this.jaw);
-    const chin = new T.Mesh(new T.SphereGeometry(0.078, 16, 12), skin);
+    const chin = new T.Mesh(new T.SphereGeometry(0.078, 24, 18), skin);
     chin.scale.set(0.84, 0.6, 0.8); chin.position.set(0, -0.012, 0.022);
     this.jaw.add(chin);
     // lips (top lip fixed to the head; bottom lip rides on the jaw)
-    const lipMat = mat(0xc06a58, 0.5);
-    this.lipTop = new T.Mesh(new T.BoxGeometry(0.038, 0.0068, 0.009), lipMat);
+    const lipMat = skinMat(0xc06a58, 0.42);
+    this.lipTop = new T.Mesh(lipGeo(0.024, 0.0048), lipMat);
     this.lipTop.position.set(0, 0.031, 0.094); this.head.add(this.lipTop);
-    this.lipBot = new T.Mesh(new T.BoxGeometry(0.034, 0.0068, 0.009), lipMat);
+    this.lipBot = new T.Mesh(lipGeo(0.021, 0.0052), lipMat);
     this.lipBot.position.set(0, -0.021, 0.081); this.jaw.add(this.lipBot);
     // mouth interior (revealed when the jaw opens)
     const mouthIn = new T.Mesh(new T.BoxGeometry(0.032, 0.013, 0.008), mat(0x53201f, 0.9));
     mouthIn.position.set(0, 0.0275, 0.088); this.head.add(mouthIn);
     // nose — small and soft
-    const nose = new T.Mesh(new T.SphereGeometry(0.012, 8, 8), skin);
+    const nose = new T.Mesh(new T.SphereGeometry(0.014, 14, 12), skin);
     nose.scale.set(0.9, 1.0, 1.1); nose.position.set(0, 0.068, 0.102); this.head.add(nose);
     // ears
     for (const s of [-1, 1]) {
-      const ear = new T.Mesh(new T.SphereGeometry(0.022, 8, 8), skin);
+      const ear = new T.Mesh(new T.SphereGeometry(0.022, 14, 12), skin);
       ear.scale.set(0.5, 1, 0.7); ear.position.set(s * 0.096, 0.08, 0.005);
       this.head.add(ear);
     }
@@ -144,12 +164,12 @@ export class Character {
     this.eyes = [];
     for (const s of [-1, 1]) {
       const eg = new T.Group(); eg.position.set(s * 0.041, 0.093, 0.083);
-      const sclera = new T.Mesh(new T.SphereGeometry(0.0235, 16, 12), new T.MeshStandardMaterial({ color: 0xfaf7f2, roughness: 0.2 }));
+      const sclera = new T.Mesh(new T.SphereGeometry(0.0235, 24, 18), new T.MeshStandardMaterial({ color: 0xfaf7f2, roughness: 0.15 }));
       sclera.scale.set(1, 1.12, 0.7);
       eg.add(sclera);
-      const iris = new T.Mesh(new T.CircleGeometry(0.0145, 18), new T.MeshStandardMaterial({ color: 0x7a4a26, roughness: 0.25 }));
+      const iris = new T.Mesh(new T.CircleGeometry(0.0145, 24), new T.MeshStandardMaterial({ color: 0x7a4a26, roughness: 0.2 }));
       iris.position.z = 0.0168; eg.add(iris);
-      const irisRim = new T.Mesh(new T.RingGeometry(0.0135, 0.0155, 18), new T.MeshBasicMaterial({ color: 0x4a2c14 }));
+      const irisRim = new T.Mesh(new T.RingGeometry(0.0135, 0.0155, 24), new T.MeshBasicMaterial({ color: 0x4a2c14 }));
       irisRim.position.z = 0.0169; eg.add(irisRim);
       const pupil = new T.Mesh(new T.CircleGeometry(0.0068, 14), new T.MeshBasicMaterial({ color: 0x140b06 }));
       pupil.position.z = 0.0172; eg.add(pupil);
@@ -157,9 +177,9 @@ export class Character {
       glint.position.set(0.0045, 0.006, 0.0176); eg.add(glint);
       const glint2 = new T.Mesh(new T.CircleGeometry(0.0014, 8), new T.MeshBasicMaterial({ color: 0xffffff }));
       glint2.position.set(-0.004, -0.004, 0.0176); eg.add(glint2);
-      const lid = new T.Mesh(new T.SphereGeometry(0.0245, 16, 8, 0, Math.PI * 2, 0, Math.PI / 2), mat(SKIN_SHADE, 0.6));
+      const lid = new T.Mesh(new T.SphereGeometry(0.0245, 22, 12, 0, Math.PI * 2, 0, Math.PI / 2), mat(SKIN_SHADE, 0.6));
       lid.scale.set(1, 1.1, 0.72); lid.rotation.x = -0.5; eg.add(lid);
-      const lidBot = new T.Mesh(new T.SphereGeometry(0.0242, 16, 8, 0, Math.PI * 2, Math.PI / 1.9, Math.PI / 2.6), mat(SKIN_SHADE, 0.6));
+      const lidBot = new T.Mesh(new T.SphereGeometry(0.0242, 22, 12, 0, Math.PI * 2, Math.PI / 1.9, Math.PI / 2.6), mat(SKIN_SHADE, 0.6));
       lidBot.scale.set(1, 1.1, 0.72); lidBot.rotation.x = 0.3; eg.add(lidBot);
       // lashes — a thin dark arc above the eye
       const lash = new T.Mesh(new T.TorusGeometry(0.0225, 0.0022, 6, 14, Math.PI * 0.75), mat(0x241a12, 0.8));
@@ -179,20 +199,22 @@ export class Character {
 
     // -- hair: long, dark, loose — center part cap + curtains + long back
     const hairMat = mat(HAIR, 0.68);
-    const cap = new T.Mesh(new T.SphereGeometry(0.114, 20, 14, 0, Math.PI * 2, 0, Math.PI / 2.02), hairMat);
+    const cap = new T.Mesh(new T.SphereGeometry(0.114, 28, 20, 0, Math.PI * 2, 0, Math.PI / 2.02), hairMat);
     cap.position.y = 0.096; cap.rotation.x = -0.1; cap.scale.set(0.99, 1.03, 1.06); this.head.add(cap);
     // volume at the back of the skull
-    const backVol = new T.Mesh(new T.SphereGeometry(0.105, 14, 10), hairMat);
+    const backVol = new T.Mesh(new T.SphereGeometry(0.105, 20, 14), hairMat);
     backVol.scale.set(0.95, 1.12, 0.75); backVol.position.set(0, 0.06, -0.055); backVol.castShadow = true; this.head.add(backVol);
     // long swaying locks: side curtains + back panel
     this.hairSway = [];
     const mkLock = (x, z, w, d, len, rz) => {
       const g = new T.Group(); g.position.set(x, 0.06, z);
-      const lock = new T.Mesh(new T.BoxGeometry(w, len, d), hairMat);
+      // a gently tapered cylinder reads as a soft lock of hair, not a plank
+      const lock = new T.Mesh(new T.CylinderGeometry(w * 0.42, w * 0.62, len, 10, 3), hairMat);
+      lock.scale.z = d / w;
       lock.position.y = -len / 2 + 0.02; lock.castShadow = true;
       g.add(lock);
-      const tip = new T.Mesh(new T.SphereGeometry(w * 0.55, 8, 6), hairMat);
-      tip.scale.set(1, 0.7, d / w); tip.position.y = -len + 0.02; g.add(tip);
+      const tip = new T.Mesh(new T.SphereGeometry(w * 0.42, 10, 8), hairMat);
+      tip.scale.set(1, 0.65, d / w); tip.position.y = -len + 0.02; g.add(tip);
       g.rotation.z = rz;
       this.head.add(g);
       this.hairSway.push(g);
@@ -224,7 +246,7 @@ export class Character {
     elbow.add(ball(0.035, skin));
     elbow.add(limb(0.034, 0.026, L2, skin));
     // wrist cuff (like the reference)
-    const cuff = new T.Mesh(new T.CylinderGeometry(0.03, 0.03, 0.035, 10), mat(BELT, 0.7));
+    const cuff = new T.Mesh(new T.CylinderGeometry(0.03, 0.03, 0.035, 18), mat(BELT, 0.7));
     cuff.position.y = -L2 + 0.035; elbow.add(cuff);
 
     const wrist = new T.Group(); wrist.position.y = -L2; elbow.add(wrist);
@@ -236,19 +258,19 @@ export class Character {
     for (let i = 0; i < 4; i++) {
       const fx = (i - 1.5) * 0.0132;
       const seg1 = new T.Group(); seg1.position.set(fx, -0.073, 0);
-      const f1 = new T.Mesh(new T.CapsuleGeometry(fw / 2, 0.021, 3, 6), skin);
+      const f1 = new T.Mesh(new T.CapsuleGeometry(fw / 2, 0.021, 4, 8), skin);
       f1.position.y = -0.013; seg1.add(f1);
       const seg2 = new T.Group(); seg2.position.y = -0.029; seg1.add(seg2);
-      const f2 = new T.Mesh(new T.CapsuleGeometry(fw / 2.15, 0.016, 3, 6), skin);
+      const f2 = new T.Mesh(new T.CapsuleGeometry(fw / 2.15, 0.016, 4, 8), skin);
       f2.position.y = -0.01; seg2.add(f2);
       hand.add(seg1);
       fingers.push({ s1: seg1, s2: seg2 });
     }
     const thumb1 = new T.Group(); thumb1.position.set(-side * 0.029, -0.027, 0.008);
     thumb1.rotation.z = side * 0.9;
-    const t1 = new T.Mesh(new T.CapsuleGeometry(0.0063, 0.019, 3, 6), skin); t1.position.y = -0.012; thumb1.add(t1);
+    const t1 = new T.Mesh(new T.CapsuleGeometry(0.0063, 0.019, 4, 8), skin); t1.position.y = -0.012; thumb1.add(t1);
     const thumb2 = new T.Group(); thumb2.position.y = -0.026; thumb1.add(thumb2);
-    const t2 = new T.Mesh(new T.CapsuleGeometry(0.0058, 0.013, 3, 6), skin); t2.position.y = -0.008; thumb2.add(t2);
+    const t2 = new T.Mesh(new T.CapsuleGeometry(0.0058, 0.013, 4, 8), skin); t2.position.y = -0.008; thumb2.add(t2);
     hand.add(thumb1);
     const grip = new T.Group(); grip.position.set(0, -0.072, 0.027); hand.add(grip);
 
@@ -260,19 +282,19 @@ export class Character {
     const hip = new T.Group(); hip.position.set(side * 0.088, -0.03, 0); this.pelvis.add(hip);
     hip.add(limb(0.07, 0.052, L1, skin));
     // shorts leg
-    const shortLeg = new T.Mesh(new T.CylinderGeometry(0.078, 0.072, 0.17, 12), shorts);
+    const shortLeg = new T.Mesh(new T.CylinderGeometry(0.078, 0.072, 0.17, 18), shorts);
     shortLeg.position.y = -0.085; shortLeg.castShadow = true; hip.add(shortLeg);
     const knee = new T.Group(); knee.position.y = -L1; hip.add(knee);
     knee.add(ball(0.048, skin));
     knee.add(limb(0.048, 0.036, L2, skin));
     // boot shaft
-    const shaft = new T.Mesh(new T.CylinderGeometry(0.052, 0.056, 0.16, 12), mat(BOOT, 0.75));
+    const shaft = new T.Mesh(new T.CylinderGeometry(0.052, 0.056, 0.16, 18), mat(BOOT, 0.75));
     shaft.position.y = -L2 + 0.075; knee.add(shaft);
     const ankle = new T.Group(); ankle.position.y = -L2; knee.add(ankle);
     const bootMat = mat(BOOT, 0.7);
     const foot = new T.Mesh(new T.BoxGeometry(0.088, 0.06, 0.21), bootMat);
     foot.position.set(0, -0.03, 0.04); foot.castShadow = true; ankle.add(foot);
-    const toe = new T.Mesh(new T.SphereGeometry(0.045, 8, 6), bootMat);
+    const toe = new T.Mesh(new T.SphereGeometry(0.045, 14, 10), bootMat);
     toe.scale.set(0.95, 0.64, 0.9); toe.position.set(0, -0.042, 0.14); ankle.add(toe);
     const sole = new T.Mesh(new T.BoxGeometry(0.092, 0.022, 0.23), mat(SOLE, 0.85));
     sole.position.set(0, -0.058, 0.05); ankle.add(sole);
