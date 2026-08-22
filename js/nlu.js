@@ -7,10 +7,14 @@ const VERB_STARTERS = [
   'pick', 'grab', 'take', 'get', 'fetch', 'hold', 'put', 'place', 'set', 'move', 'bring', 'drop',
   'open', 'close', 'shut', 'turn', 'switch', 'sit', 'stand', 'go', 'walk', 'come', 'look', 'watch',
   'clean', 'tidy', 'organize', 'organise', 'water', 'throw', 'toss', 'give', 'show', 'wave', 'dance',
-  'lie', 'read', 'check', 'grabme', 'stop', 'wait', 'toggle'
+  'lie', 'read', 'check', 'grabme', 'stop', 'wait', 'toggle',
+  'jump', 'spin', 'clap', 'stretch', 'flex', 'blow', 'flip', 'point', 'do'
 ];
 
-const CONFIRMS = ['On it.', 'Sure.', 'Okay, one sec.', 'Got it.', 'Mm-hm, doing it now.', 'Alright.', 'Yep, give me a second.'];
+const CONFIRMS = [
+  'Okiii, on it!! 💪', 'Yesss, watch this.', 'Ooh, a mission! Love it.', 'Say less 😄',
+  'One sec one sec!!', 'Okay okay, doing it now!', 'Hehe okay, watch me go.'
+];
 const pick = (arr) => arr[Math.floor(Math.random() * arr.length)];
 
 export class NLU {
@@ -225,26 +229,29 @@ export class NLU {
       return { actions: acts, reply: { text: pick(['Heads up!', 'Okay but if this breaks something, that\'s on you.', 'Incoming!']), emotion: 'amused' } };
     }
 
-    // ---- give / show / bring to camera
-    if (/^(?:give me|show me|bring me|show|hold up) /.test(c)) {
+    // ---- give / show / bring to camera (small holdables only — rooms and
+    // furniture fall through to the camera branches below)
+    if (/^(?:give me|show me|bring me|show|hold up) /.test(c) && !/room|apartment|place|around|tour|view|what you see/.test(c)) {
       const obj = this.resolveObject(c) || this.heldOrLast();
-      if (!obj || !obj.holdable) return { fail: { text: "I'm not sure what you want to see.", emotion: 'confused' } };
-      this.lastObjectId = obj.id;
-      const acts = [];
-      if (ag.char.heldItem() !== obj) acts.push(...ag.planPick(obj.id));
-      acts.push({ type: 'show', id: obj.id, dur: 2.5 });
-      return { actions: acts, reply: { text: pick(['Here, look.', 'This one? Here.', 'Ta-da.']), emotion: 'happy' } };
+      if (obj && obj.holdable) {
+        this.lastObjectId = obj.id;
+        const acts = [];
+        if (ag.char.heldItem() !== obj) acts.push(...ag.planPick(obj.id));
+        acts.push({ type: 'show', id: obj.id, dur: 2.5 });
+        return { actions: acts, reply: { text: pick(['Here, look!!', 'This one? Ta-daa 😄', 'Presenting… this!']), emotion: 'happy' } };
+      }
+      // not a holdable — fall through to the camera branches below
     }
 
     // ---- pick up / grab / take
     if (/^(?:pick up|pick|grab|take(?: out)?|get|fetch|hold) /.test(c)) {
       const obj = this.resolveObject(c);
-      if (!obj) return { fail: { text: "Hmm — I looked around, but I'm not sure which thing you mean.", emotion: 'confused' } };
+      if (!obj) return { fail: { text: "Wait, which thing?? 😅 I looked around and I'm not sure which one you mean!", emotion: 'confused' } };
       if (!obj.holdable) {
         if (obj.holdableHeavy) {
-          return { fail: { text: `The ${obj.name} is a bit heavy, but I can push it around if you tell me where.`, emotion: 'thinking' } };
+          return { fail: { text: `Ooh the ${obj.name}'s kinda heavy — but I can totally drag it! Just tell me where 💪`, emotion: 'happy' } };
         }
-        return { fail: { text: `I can't exactly pick up the ${obj.name}.`, emotion: 'amused' } };
+        return { fail: { text: `LOL I cannot pick up the whole ${obj.name}?? I'm strong but I'm not THAT strong 😂`, emotion: 'amused' } };
       }
       if (ag.char.heldItem() === obj) return { actions: [], reply: { text: `I'm already holding the ${obj.name}.`, emotion: 'amused' } };
       this.lastObjectId = obj.id;
@@ -380,13 +387,47 @@ export class NLU {
       return { actions: acts, reply: { text: 'Mm, I was in the middle of a good chapter anyway.', emotion: 'calm' } };
     }
 
-    // ---- gestures
-    if (/^wave|say hi/.test(c)) return { actions: [{ type: 'look', id: 'camera', dur: 0.5 }, { type: 'gesture', name: 'wave', dur: 1.8 }], reply: { text: 'Hi! 👋', emotion: 'happy' } };
-    if (/^dance/.test(c)) {
-      return {
-        actions: [{ type: 'gesture', name: 'wave', dur: 1.5 }, { type: 'gesture', name: 'shrug', dur: 1.5 }],
-        reply: { text: "Okay, fair warning: my dancing subroutines are... experimental.", emotion: 'amused' }
-      };
+    // ---- gestures (full-body moves)
+    if (/^wave|say hi/.test(c)) return { actions: [{ type: 'look', id: 'camera', dur: 0.5 }, { type: 'gesture', name: 'wave', dur: 1.8 }], reply: { text: pick(['Hiii!! 👋', 'Heyyy!!']), emotion: 'happy' } };
+    if (/^dance|do a (?:little )?dance|show me your moves|bust a move/.test(c)) {
+      const acts = [];
+      if (ag.sittingOn) acts.push({ type: 'stand' });
+      acts.push({ type: 'look', id: 'camera', dur: 0.4 }, { type: 'gesture', name: 'dance', dur: 4.4 });
+      return { actions: acts, reply: { text: pick(["Okay okay watch — I've been practicing 😂", 'Ooh yes!! DJ, drop the imaginary beat!', "Fair warning, I'm gonna be SO good at this."]), emotion: 'amused' } };
+    }
+    if (/^jump/.test(c)) {
+      const acts = [];
+      if (ag.sittingOn) acts.push({ type: 'stand' });
+      acts.push({ type: 'gesture', name: 'jump', dur: 1.4 });
+      return { actions: acts, reply: { text: pick(['Wheee!!', 'Boing!! 😂', 'Okay that was fun, again?']), emotion: 'happy' } };
+    }
+    if (/^spin|twirl|turn around/.test(c)) {
+      const acts = [];
+      if (ag.sittingOn) acts.push({ type: 'stand' });
+      acts.push({ type: 'gesture', name: 'spin', dur: 1.2 });
+      return { actions: acts, reply: { text: pick(['Wheeee~', 'Twirl!! ✨', 'Okay I got dizzy. Worth it.']), emotion: 'happy' } };
+    }
+    if (/^clap|applaud/.test(c)) return { actions: [{ type: 'gesture', name: 'clap', dur: 2 }], reply: { text: pick(['Yayyy!! 👏', 'Round of applause!!']), emotion: 'happy' } };
+    if (/^stretch/.test(c)) return { actions: [{ type: 'gesture', name: 'stretch', dur: 2.3 }], reply: { text: 'Mmmph— okay wow, I needed that.', emotion: 'calm' } };
+    if (/^flex|muscles|how strong/.test(c)) return { actions: [{ type: 'gesture', name: 'flex', dur: 2.2 }], reply: { text: pick(['Absolute unit. Fear me 😤😂', 'These? Oh these are from carrying the water bottle.']), emotion: 'amused' } };
+    if (/blow (?:me )?a kiss|^kiss/.test(c)) return { actions: [{ type: 'look', id: 'camera', dur: 0.4 }, { type: 'gesture', name: 'kiss', dur: 1.9 }], reply: { text: 'Mwah!! 😘 Catch it, don\'t waste it.', emotion: 'happy' } };
+    if (/^point at me|point at the camera/.test(c)) return { actions: [{ type: 'gesture', name: 'point', dur: 1.6 }], reply: { text: 'YOU. Yeah, you 😄', emotion: 'amused' } };
+
+    // ---- camera control (she aims the phone)
+    if (/show me (?:the |your )?(?:room|apartment|place)|look around|show me around|give me a tour/.test(c)) {
+      return { actions: [{ type: 'camera', mode: 'roomtour', dur: 9 }], reply: { text: pick(['Okay okay, welcome to my humble kingdom!! 😄', 'Grand tour time!! It takes like nine seconds, brace yourself.']), emotion: 'happy' } };
+    }
+    if (/flip the camera|show me (?:your view|what you see)|what do you see/.test(c)) {
+      return { actions: [{ type: 'camera', mode: 'pov', dur: 6 }], reply: { text: pick(['Okay, flipping it — THIS is my view.', "Here, look what I'm looking at!"]), emotion: 'happy' } };
+    }
+    const showObj = c.match(/^show me (?:the |your )?([a-z ]+)$/);
+    if (showObj) {
+      const target = this.resolveObject(showObj[1] + ' ');
+      if (target && !target.holdable) {
+        this.lastObjectId = target.id;
+        return { actions: [{ type: 'camera', mode: 'point', id: target.id, dur: 5 }], reply: { text: pick([`Ta-daa, the ${target.name}!`, `Behold… the ${target.name} 😄`]), emotion: 'happy' } };
+      }
+      // small holdables are handled by the give/show branch above
     }
 
     return null; // conversational — dialogue engine takes it

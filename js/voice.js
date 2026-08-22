@@ -25,15 +25,20 @@ export class Voice {
   }
 
   speak(text) {
-    if (!this.enabled || !('speechSynthesis' in window)) {
+    // strip emoji and texting shorthand so the voice doesn't read them aloud
+    const spoken = text
+      .replace(/[\u{1F000}-\u{1FAFF}\u{2600}-\u{27BF}\u{FE0F}\u{2764}\u{1F900}-\u{1F9FF}]/gu, '')
+      .replace(/\blol\b/gi, '')
+      .replace(/\s+/g, ' ').trim();
+    if (!this.enabled || !('speechSynthesis' in window) || !spoken) {
       // still drive the mouth so lips move with captions
       this._fakeMouth(Math.max(1.2, text.length * 0.055));
       return;
     }
     speechSynthesis.cancel();
-    const u = new SpeechSynthesisUtterance(text);
+    const u = new SpeechSynthesisUtterance(spoken);
     if (this.voice) u.voice = this.voice;
-    u.rate = 1.02; u.pitch = 1.12; u.volume = 1;
+    u.rate = 1.05; u.pitch = 1.22; u.volume = 1;
     this.speaking = true;
     this._startMouth();
     u.onend = u.onerror = () => {

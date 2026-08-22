@@ -36,7 +36,7 @@ renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = T.PCFSoftShadowMap;
 renderer.toneMapping = T.ACESFilmicToneMapping;
 renderer.toneMappingExposure = 1.0;
-renderer.setPixelRatio(Math.min(2, window.devicePixelRatio));
+renderer.setPixelRatio(Math.min(1.5, window.devicePixelRatio)); // keep frame rate smooth on phones
 
 const camera = new T.PerspectiveCamera(55, 1, 0.05, 30);
 camera.position.set(0, 1.5, 2);
@@ -64,6 +64,8 @@ const state = {
   camPos: new T.Vector3(0, 1.5, 2),
   camLook: new T.Vector3(0, 1.4, 0),
   proppedPos: null,
+  camDirective: null,       // {mode:'point'|'pov'|'roomtour', id?, until} — she aims the phone
+  dragYaw: 0, dragPitch: 0, // player drag-look offsets
   messages: [],             // [{from:'me'|'ai'|'sys', text, t}]
   unread: 0,
   settings: { tts: true, captions: true, incoming: true },
@@ -114,9 +116,9 @@ function load() {
     if (done.length && Math.random() < 0.65) {
       // she mentions it by message
       setTimeout(() => aiSendsMessage(pick([
-        `While you were gone I ${done[done.length - 1]}. Just so you know.`,
-        `Update from the room: I ${done[0]}. Riveting, I know.`,
-        `You missed it — I ${pick(done)}. Call me later?`,
+        `omg you're back!! while you were gone I ${done[done.length - 1]} 😄`,
+        `update from the room: I ${done[0]}. thrilling stuff, I know 😂 call me!!`,
+        `you MISSED it — I ${pick(done)}. okay it wasn't that dramatic but still. call me later? 🥺`,
       ])), 4000 + Math.random() * 8000);
     }
   }
@@ -233,7 +235,11 @@ async function handleUtterance(text, channel) {
       agent.activityUntil = performance.now() / 1000 + 9999; // pause autonomous life
       agent.enqueue(parsed.actions);
       agent.enqueue([{ type: 'custom', fn: (ag) => { ag.playerTask = false; ag.activityUntil = 0; if (state.inCall) resumeHeldCamera(); return true; } }]);
-      if (state.inCall) enterWatchCamera();
+      // only prop the phone for tasks that need her body across the room —
+      // gestures and camera moves happen right on the call
+      const needsBody = parsed.actions.some(a =>
+        ['goTo', 'goToObj', 'pick', 'place', 'open', 'toggle', 'sit', 'push', 'water', 'throw'].includes(a.type));
+      if (state.inCall && needsBody) enterWatchCamera();
       memory.logEvent(`did what you asked: “${text.length > 50 ? text.slice(0, 47) + '…' : text}”`);
     }
     respond(parsed.reply);
@@ -250,6 +256,8 @@ function startCall(initiatedByAria = false, reason = null) {
   state.inCall = true;
   state.callConnected = false;
   state.callStart = 0;
+  state.camDirective = null;
+  state.dragYaw = 0; state.dragPitch = 0;
   agent.inCall = true;
   agent.clearTasks();
   agent.activityUntil = performance.now() / 1000 + 99999;
@@ -287,9 +295,10 @@ function connectCall(byAria, reason) {
   else {
     const act = agent.currentActivity.replace(/\bher\b/g, 'my'); // she speaks in first person
     line = pick([
-      `Hey${name}! Perfect timing — I was just ${act}.`,
-      `Hi${name}! Sorry, one sec, I was ${act}. Okay. Hi!`,
-      `Hey you${name ? name : ''}. I was ${act} — what's up?`,
+      `Heyyy${name}!! Omg perfect timing, I was just ${act}.`,
+      `Hiii${name}! Wait wait, one sec, I was ${act}— okay okay. HI! 😄`,
+      `Heyy${name}!! I was literally just ${act} and hoping you'd call.`,
+      `Omg hi${name}!! Okay you caught me ${act}, don't judge 😂`,
     ]);
   }
   setTimeout(() => { char.playGesture('wave'); ariaSays(line, 'happy'); }, 700);
@@ -355,12 +364,77 @@ function triggerFocusPulse() {
   setTimeout(() => el.classList.add('hidden'), 750);
 }
 
+// ============================================================ camera directives (she aims the phone)
+// ordered as a smooth pan around the room, not a zigzag
+const TOUR_STOPS = ['tv', 'bookshelf', 'desk', 'bed', 'couch', 'counter', 'fridge'];
+agent.onCamera = (a) => {
+  const now = performance.now() / 1000;
+  state.camDirective = { mode: a.mode, id: a.id || null, until: now + (a.dur ?? 5), start: now };
+  triggerFocusPulse();
+};
+
+// player drag-to-look on the call screen
+(() => {
+  let dragging = false, lx = 0, ly = 0;
+  canvas.addEventListener('pointerdown', (e) => { dragging = true; lx = e.clientX; ly = e.clientY; });
+  window.addEventListener('pointermove', (e) => {
+    if (!dragging || !state.inCall) return;
+    state.dragYaw = T.MathUtils.clamp(state.dragYaw - (e.clientX - lx) * 0.004, -0.9, 0.9);
+    state.dragPitch = T.MathUtils.clamp(state.dragPitch - (e.clientY - ly) * 0.003, -0.45, 0.45);
+    lx = e.clientX; ly = e.clientY;
+  });
+  window.addEventListener('pointerup', () => { dragging = false; });
+})();
+
 // ============================================================ camera update
 const camNoise = { t: 0 };
 function updateCamera(dt, t) {
   camNoise.t += dt;
   const n = camNoise.t;
   let targetPos, targetLook;
+
+  // active phone-aiming directive?
+  const dir = state.camDirective;
+  if (dir && performance.now() / 1000 > dir.until) state.camDirective = null;
+  if (dir && state.camDirective && state.callConnected) {
+    const hw = char.headWorld(new T.Vector3());
+    const ry = char.root.rotation.y;
+    const f = new T.Vector3(Math.sin(ry), 0, Math.cos(ry));
+    const heldPos = hw.clone().addScaledVector(f, 0.55); heldPos.y = hw.y + 0.06;
+    if (dir.mode === 'pov') {
+      // her point of view — camera at her eyes looking where she looks
+      targetPos = hw.clone().addScaledVector(f, 0.12); targetPos.y = hw.y + 0.09;
+      targetLook = hw.clone().addScaledVector(f, 3); targetLook.y = hw.y - 0.15;
+      camera.fov += (62 - camera.fov) * dt * 3;
+    } else {
+      let lookAt;
+      if (dir.mode === 'roomtour') {
+        const idx = Math.min(TOUR_STOPS.length - 1, Math.floor((performance.now() / 1000 - dir.start) / 1.35));
+        lookAt = world.worldPos(world.get(TOUR_STOPS[idx])); lookAt.y = Math.max(0.7, lookAt.y);
+      } else {
+        lookAt = world.worldPos(world.get(dir.id)); lookAt.y = Math.max(0.5, lookAt.y + 0.15);
+      }
+      // film each stop from the open middle of the room so furniture never blocks the shot
+      const toCenter = new T.Vector3(-lookAt.x, 0, -lookAt.z);
+      if (toCenter.lengthSq() < 0.01) toCenter.set(0, 0, 1);
+      toCenter.normalize();
+      targetPos = lookAt.clone().addScaledVector(toCenter, 2.4);
+      targetPos.y = 1.45;
+      targetPos.x = T.MathUtils.clamp(targetPos.x, -3.6, 3.6);
+      targetPos.z = T.MathUtils.clamp(targetPos.z, -2.6, 2.6);
+      void heldPos;
+      targetLook = lookAt;
+      char.setLook(lookAt);
+      camera.fov += (56 - camera.fov) * dt * 2;
+    }
+    const k2 = Math.min(1, dt * 5.5);
+    state.camPos.lerp(targetPos, k2);
+    state.camLook.lerp(targetLook, Math.min(1, dt * 4.5));
+    camera.position.copy(state.camPos);
+    camera.lookAt(state.camLook);
+    camera.updateProjectionMatrix();
+    return;
+  }
 
   if (state.camMode === 'held' || !state.callConnected) {
     const hw = char.headWorld(new T.Vector3());
@@ -399,6 +473,20 @@ function updateCamera(dt, t) {
     camera.fov += (wantFov - camera.fov) * dt * 1.5;
   }
 
+  // player drag-look: orbit the camera around the subject, gently recentring over time
+  if (state.dragYaw || state.dragPitch) {
+    const off = targetPos.clone().sub(targetLook);
+    off.applyAxisAngle(new T.Vector3(0, 1, 0), state.dragYaw);
+    const right = new T.Vector3().crossVectors(off, new T.Vector3(0, 1, 0));
+    if (right.lengthSq() > 0.0001) {
+      right.normalize();
+      off.applyAxisAngle(right, state.dragPitch);
+    }
+    targetPos = targetLook.clone().add(off);
+    state.dragYaw *= 1 - Math.min(1, dt * 0.25);
+    state.dragPitch *= 1 - Math.min(1, dt * 0.25);
+  }
+
   const k = Math.min(1, dt * (state.camMode === 'held' ? 7 : 3));
   state.camPos.lerp(targetPos, k);
   state.camLook.lerp(targetLook, Math.min(1, dt * 6));
@@ -410,10 +498,10 @@ function updateCamera(dt, t) {
   const lightsOn = world.get('ceilingLight').state.on || world.get('lamp').state.on;
   const curtains = world.get('curtains').state.open;
   const mode = world.daylightMode;
-  let targetExp = 1.0;
-  if (!lightsOn && mode === 'night') targetExp = curtains ? 2.2 : 3.0;
-  else if (!lightsOn) targetExp = curtains ? 1.05 : 1.9;
-  else if (mode === 'night') targetExp = 1.25;
+  let targetExp = 1.18;
+  if (!lightsOn && mode === 'night') targetExp = curtains ? 2.3 : 3.1;
+  else if (!lightsOn) targetExp = curtains ? 1.2 : 2.0;
+  else if (mode === 'night') targetExp = 1.4;
   renderer.toneMappingExposure += (targetExp - renderer.toneMappingExposure) * dt * 1.2;
 }
 
@@ -454,10 +542,11 @@ function maybeIncoming(dt) {
     state.aiMsgTimer = 500 + Math.random() * 600;
     const ev = memory.recentEvents(null, 1)[0];
     aiSendsMessage(pick([
-      ev ? `So, small update: ${ev.desc}. Life in here is thrilling.` : 'Thinking of rearranging the books. By color, or by how much I like them?',
-      'What do you think — TV or a book tonight? I can\'t decide.',
-      memory.facts.playerName ? `Hey ${memory.facts.playerName}, you around?` : 'Hey, you around?',
-      'The plant and I miss you. Mostly me. The plant is indifferent.',
+      ev ? `okay tiny update: ${ev.desc} 😂 life in here is WILD` : 'thinking of rearranging the books… by color or by how much I like them?? this is urgent',
+      'okay real question: TV or book tonight?? I cannot decide and it\'s becoming a whole thing 😂',
+      memory.facts.playerName ? `heyyy ${memory.facts.playerName}, you around? 👀` : 'heyyy, you around? 👀',
+      'me and the plant miss you!! okay mostly me. the plant is famously hard to read 🌱',
+      'I just want you to know the apple is still staring at me and I am staying strong 😤',
     ]));
   }
 }
@@ -466,8 +555,8 @@ let incomingReason = null;
 function showIncomingCall() {
   const ev = memory.recentEvents(null, 1)[0];
   incomingReason = ev
-    ? pick([`“Okay so — ${ev.desc}. I had to tell someone.”`, `“You'll never guess what happened. Well. Something small. But still.”`])
-    : pick(['“I found something I want to show you.”', '“I have a very important question about the couch cushions.”', '“Just wanted to say hi, honestly.”']);
+    ? pick([`“OKAY so — ${ev.desc}. I had to tell someone!!”`, `“You will NEVER guess what happened. Okay it's small. But still!!”`])
+    : pick(['“I found something and you need to see it right now.”', '“EMERGENCY. Okay not emergency. Cushion-related question.”', '“I just miss your face, pick uppp!”']);
   $('incoming-reason').textContent = incomingReason;
   $('incoming').classList.remove('hidden');
   renderAvatars();
@@ -478,16 +567,16 @@ $('btn-accept').addEventListener('click', () => {
   $('incoming').classList.add('hidden');
   const ev = memory.recentEvents(null, 1)[0];
   const line = ev
-    ? `Hey! Okay so, you have to hear this — ${ev.desc}. I know, I know. Huge news in here.`
-    : pick(['Hey! I just wanted to see you, honestly. How are you?', 'Hi! Okay, important question: do the cushions look better like this?']);
+    ? `HI okay okay — you have to hear this — ${ev.desc}!! I KNOW. Biggest news of my entire day 😂`
+    : pick(['Heyy!! Honestly? I just wanted to see your face. How are youuu?', 'Hi!! Okay urgent question: cushions like THIS, or like this?? Wait, I\'ll show you.']);
   startCall(true, line);
 });
 $('btn-decline').addEventListener('click', () => {
   ringtone.stop();
   $('incoming').classList.add('hidden');
   setTimeout(() => aiSendsMessage(pick([
-    'No worries — call me when you\'re free!',
-    'Missed you! It wasn\'t urgent. Well. It was a little urgent. The cushion thing.',
+    'noooo you declined me 💔😂 okay okay, call me when you\'re free!!',
+    'missed youu! it wasn\'t urgent. okay it was a LITTLE urgent. cushion stuff. you\'ll see.',
   ])), 2500);
 });
 

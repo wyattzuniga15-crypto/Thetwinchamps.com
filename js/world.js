@@ -43,7 +43,7 @@ function woodTexture(base = '#8a6a4d', lines = '#6f5236') {
   tx.wrapS = tx.wrapT = T.RepeatWrapping;
   return tx;
 }
-function wallTexture(base = '#cfc8bc') {
+function wallTexture(base = '#e6dccb') {
   const c = document.createElement('canvas'); c.width = 256; c.height = 256;
   const g = c.getContext('2d');
   g.fillStyle = base; g.fillRect(0, 0, 256, 256);
@@ -63,9 +63,9 @@ function wallTexture(base = '#cfc8bc') {
 function rugTexture() {
   const c = document.createElement('canvas'); c.width = 256; c.height = 256;
   const g = c.getContext('2d');
-  g.fillStyle = '#5c6b8a'; g.fillRect(0, 0, 256, 256);
-  g.strokeStyle = '#8fa0c4'; g.lineWidth = 5; g.strokeRect(14, 14, 228, 228);
-  g.strokeStyle = '#42506e'; g.lineWidth = 3; g.strokeRect(28, 28, 200, 200);
+  g.fillStyle = '#c9705a'; g.fillRect(0, 0, 256, 256);
+  g.strokeStyle = '#f0d9a8'; g.lineWidth = 5; g.strokeRect(14, 14, 228, 228);
+  g.strokeStyle = '#9a4f3e'; g.lineWidth = 3; g.strokeRect(28, 28, 200, 200);
   for (let i = 0; i < 4000; i++) {
     g.fillStyle = `rgba(255,255,255,${Math.random() * 0.05})`;
     g.fillRect(Math.random() * 256, Math.random() * 256, 1, 1);
@@ -339,13 +339,13 @@ export class World {
   // ---- lights --------------------------------------------------------------
   _buildLights() {
     const S = this.scene;
-    this.hemi = new T.HemisphereLight(0xcfe4ff, 0x3a3025, 0.35);
+    this.hemi = new T.HemisphereLight(0xd8ecff, 0x4a3c2c, 0.45);
     S.add(this.hemi);
 
     this.sun = new T.DirectionalLight(0xfff1dd, 2.2);
     this.sun.position.set(9, 4.5, 1.2);
     this.sun.castShadow = true;
-    this.sun.shadow.mapSize.set(2048, 2048);
+    this.sun.shadow.mapSize.set(1536, 1536);
     this.sun.shadow.camera.left = -6; this.sun.shadow.camera.right = 6;
     this.sun.shadow.camera.top = 6; this.sun.shadow.camera.bottom = -6;
     this.sun.shadow.bias = -0.0004;
@@ -364,7 +364,7 @@ export class World {
     this.ceilLight = new T.PointLight(0xffe6c0, 30, 12, 1.8);
     this.ceilLight.position.set(0, 2.45, 0);
     this.ceilLight.castShadow = true;
-    this.ceilLight.shadow.mapSize.set(1024, 1024);
+    this.ceilLight.shadow.mapSize.set(768, 768);
     this.ceilLight.shadow.bias = -0.002;
     S.add(this.ceilLight);
     this.register({
@@ -379,16 +379,16 @@ export class World {
     const woodTx = woodTexture('#6f523a', '#54402c'); woodTx.repeat.set(1, 1);
     const woodMat = new T.MeshStandardMaterial({ map: woodTx, roughness: 0.65 });
     const darkWood = matStd(0x4a3626, 0.6);
-    const fabric = matStd(0x54607a, 0.95);
-    const fabricDark = matStd(0x46516a, 0.95);
+    const fabric = matStd(0x4f7d8c, 0.95);
+    const fabricDark = matStd(0x426a78, 0.95);
 
     // --- couch (facing north/TV) at (-1.5, 1.9)
     const couch = new T.Group();
     const base = box(2.1, 0.42, 0.95, fabric); base.position.y = 0.24; couch.add(base);
     const backR = box(2.1, 0.62, 0.22, fabricDark); backR.position.set(0, 0.72, 0.42); backR.rotation.x = 0.12; couch.add(backR);
     for (const sx of [-1, 1]) { const arm = box(0.24, 0.36, 0.95, fabricDark); arm.position.set(sx * 1.02, 0.6, 0); couch.add(arm); }
-    for (let i = 0; i < 3; i++) { const cush = box(0.64, 0.14, 0.8, matStd(0x5d6a86, 0.98)); cush.position.set(-0.66 + i * 0.66, 0.5, -0.03); cush.rotation.y = (Math.random() - 0.5) * 0.04; couch.add(cush); }
-    const pillow = box(0.34, 0.3, 0.12, matStd(0xc9a24f, 0.95)); pillow.position.set(-0.75, 0.75, 0.32); pillow.rotation.z = 0.4; pillow.rotation.x = -0.25; couch.add(pillow);
+    for (let i = 0; i < 3; i++) { const cush = box(0.64, 0.14, 0.8, matStd(0x5b8a9a, 0.98)); cush.position.set(-0.66 + i * 0.66, 0.5, -0.03); cush.rotation.y = (Math.random() - 0.5) * 0.04; couch.add(cush); }
+    const pillow = box(0.34, 0.3, 0.12, matStd(0xe8a13f, 0.95)); pillow.position.set(-0.75, 0.75, 0.32); pillow.rotation.z = 0.4; pillow.rotation.x = -0.25; couch.add(pillow);
     for (const [sx, sz] of [[-0.95, -0.4], [0.95, -0.4], [-0.95, 0.4], [0.95, 0.4]]) { const leg = cyl(0.03, 0.025, 0.12, darkWood); leg.position.set(sx, 0.06, sz); couch.add(leg); }
     couch.position.set(-1.5, 0, 1.9); couch.rotation.y = Math.PI;
     S.add(couch);
@@ -602,7 +602,7 @@ export class World {
       const g = new T.Group();
       const pot = cyl(0.12 * scale, 0.09 * scale, 0.18 * scale, matStd(0xa96b41, 0.85)); pot.position.y = 0.09 * scale; g.add(pot);
       const soil = cyl(0.11 * scale, 0.11 * scale, 0.02, matStd(0x3a2b1c, 1)); soil.position.y = 0.175 * scale; g.add(soil);
-      const leafMat = matStd(0x3f7a3a, 0.8, 0, { side: T.DoubleSide });
+      const leafMat = matStd(0x4a9a44, 0.75, 0, { side: T.DoubleSide });
       for (let i = 0; i < 7; i++) {
         const leaf = new T.Mesh(new T.ConeGeometry(0.05 * scale, 0.5 * scale, 5), leafMat);
         leaf.position.y = 0.35 * scale;
@@ -827,8 +827,8 @@ export class World {
       this.windowViewMat.needsUpdate = true;
     }
     const curtOpen = this.get('curtains').state.open;
-    const sunTargets = { day: 2.4, evening: 1.1, night: 0.12 };
-    const hemiTargets = { day: 0.4, evening: 0.22, night: 0.09 };
+    const sunTargets = { day: 2.7, evening: 1.25, night: 0.14 };
+    const hemiTargets = { day: 0.5, evening: 0.28, night: 0.12 };
     this.sun.intensity += ((curtOpen ? sunTargets[mode] : sunTargets[mode] * 0.18) - this.sun.intensity) * 0.05;
     this.hemi.intensity += ((curtOpen ? hemiTargets[mode] : hemiTargets[mode] * 0.5) - this.hemi.intensity) * 0.05;
     this.sun.color.set(mode === 'evening' ? 0xffc48a : mode === 'night' ? 0x9db4e8 : 0xfff1dd);

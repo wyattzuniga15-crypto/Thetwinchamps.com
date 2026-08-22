@@ -446,6 +446,10 @@ export class Agent {
       case 'wait':
         return this.actionT >= a.dur;
 
+      case 'camera': // she aims/flips the phone — handled by the call UI
+        if (!a._sent) { a._sent = true; if (this.onCamera) this.onCamera(a); }
+        return this.actionT >= (a.dur ?? 0.1);
+
       case 'setActivity':
         this.setActivity(a.desc, a.name);
         return true;
