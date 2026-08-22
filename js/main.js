@@ -285,7 +285,7 @@ function connectCall(byAria, reason) {
   let line;
   if (byAria && reason) line = reason;
   else {
-    const act = agent.currentActivity;
+    const act = agent.currentActivity.replace(/\bher\b/g, 'my'); // she speaks in first person
     line = pick([
       `Hey${name}! Perfect timing — I was just ${act}.`,
       `Hi${name}! Sorry, one sec, I was ${act}. Okay. Hi!`,

@@ -106,7 +106,7 @@ export class Dialogue {
 
     // ===== present activity / world questions =====
     if (/what (?:are|r) you doing|whatcha doing|what were you doing|are you busy/.test(text)) {
-      const act = this.agent.currentActivity;
+      const act = this.agent.currentActivity.replace(/\bher\b/g, 'my');
       const extra = pick(['Why, did you need me?', 'Riveting stuff, I know.', 'Living my best simulated life.', '']);
       return { text: `Right now? I'm ${act}. ${extra}`.trim(), emotion: 'calm' };
     }
@@ -139,7 +139,7 @@ export class Dialogue {
     }
     if (/how are you|how'?s it going|how are things|you (?:ok|okay|good)/.test(text)) {
       return { text: pick([
-        `Pretty good! I was just ${this.agent.currentActivity}. How about you?`,
+        `Pretty good! I was just ${this.agent.currentActivity.replace(/\bher\b/g, 'my')}. How about you?`,
         "Can't complain — the simulated weather in here is always perfect. How are you doing?",
         "I'm good. A bit restless maybe. I've rearranged the coffee table twice today.",
       ]), emotion: 'happy' };
