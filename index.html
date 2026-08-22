@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Aria — AI Companion</title>
+<link rel="stylesheet" href="css/style.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📱</text></svg>">
+</head>
+<body>
+
+<!-- ============ HOME SCREEN ============ -->
+<div id="screen-home" class="screen active">
+  <div class="home-inner">
+    <div class="app-badge">SIMULATION · FICTIONAL AI</div>
+    <div class="profile-card">
+      <div class="avatar-ring">
+        <canvas id="avatar-canvas" width="256" height="256"></canvas>
+        <span id="presence-dot" class="presence"></span>
+      </div>
+      <h1 class="profile-name">Aria</h1>
+      <div class="profile-sub">Fictional AI companion · lives in a simulated room</div>
+      <div id="activity-line" class="activity-line">
+        <span class="pulse"></span><span id="activity-text">…</span>
+      </div>
+      <div class="home-buttons">
+        <button id="btn-call" class="big-btn call">
+          <svg viewBox="0 0 24 24"><path d="M6.6 10.8c1.4 2.8 3.8 5.1 6.6 6.6l2.2-2.2c.3-.3.7-.4 1-.2 1.1.4 2.3.6 3.6.6.6 0 1 .4 1 1V20c0 .6-.4 1-1 1C10.6 21 3 13.4 3 4c0-.6.4-1 1-1h3.5c.6 0 1 .4 1 1 0 1.2.2 2.4.6 3.6.1.3 0 .7-.2 1l-2.3 2.2z"/></svg>
+          <span>Video Call</span>
+        </button>
+        <button id="btn-message" class="big-btn msg">
+          <svg viewBox="0 0 24 24"><path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2z"/></svg>
+          <span>Message</span>
+          <span id="msg-badge" class="badge hidden">1</span>
+        </button>
+      </div>
+      <div id="last-seen" class="last-seen"></div>
+    </div>
+    <div class="disclaimer">
+      Aria is a completely fictional artificial intelligence with a virtual body,
+      living inside a persistent simulated room. She is not a real person —
+      and she knows it.
+    </div>
+    <button id="btn-settings" class="settings-gear" title="Settings">⚙︎</button>
+  </div>
+</div>
+
+<!-- ============ CALL SCREEN ============ -->
+<div id="screen-call" class="screen">
+  <canvas id="gl"></canvas>
+  <div class="cam-overlay film-grain"></div>
+  <div class="cam-overlay vignette"></div>
+  <div id="focus-pulse" class="focus-pulse hidden"></div>
+
+  <div class="call-top">
+    <div class="call-id">
+      <div class="call-name">Aria <span class="sim-tag">AI · SIM</span></div>
+      <div id="call-timer" class="call-timer">00:00</div>
+    </div>
+    <div id="connection-pill" class="conn-pill">Connecting…</div>
+  </div>
+
+  <div id="caption" class="caption hidden"></div>
+  <div id="listening-pill" class="listening hidden"><span class="mic-anim"></span> Listening…</div>
+
+  <div class="call-bottom">
+    <div class="call-input-row">
+      <input id="call-input" type="text" placeholder="Say something to Aria…" autocomplete="off">
+      <button id="call-send" class="round-btn send" title="Send">➤</button>
+    </div>
+    <div class="call-controls">
+      <button id="btn-mic" class="round-btn big" title="Hold to talk (or click to toggle)">
+        <svg viewBox="0 0 24 24"><path d="M12 14c1.7 0 3-1.3 3-3V5c0-1.7-1.3-3-3-3S9 3.3 9 5v6c0 1.7 1.3 3 3 3zm5.3-3c0 3-2.5 5.1-5.3 5.1S6.7 14 6.7 11H5c0 3.4 2.7 6.2 6 6.7V21h2v-3.3c3.3-.5 6-3.3 6-6.7h-1.7z"/></svg>
+      </button>
+      <button id="btn-end" class="round-btn big end" title="End call">
+        <svg viewBox="0 0 24 24"><path d="M12 9c-1.6 0-3.2.3-4.6.7v3.1c0 .4-.2.7-.6.9-.9.5-1.8 1-2.5 1.7-.2.2-.4.3-.7.3-.3 0-.5-.1-.7-.3L.3 12.8c-.2-.2-.3-.4-.3-.7 0-.3.1-.5.3-.7C3.3 8.6 7.5 7 12 7s8.7 1.6 11.7 4.4c.2.2.3.4.3.7 0 .3-.1.5-.3.7l-2.5 2.5c-.2.2-.4.3-.7.3-.3 0-.5-.1-.7-.3-.8-.7-1.6-1.3-2.5-1.7-.3-.2-.6-.5-.6-.9V9.7C15.2 9.3 13.6 9 12 9z"/></svg>
+      </button>
+      <button id="btn-voice-out" class="round-btn big" title="Toggle Aria's voice">
+        <svg viewBox="0 0 24 24"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.8-1-3.3-2.5-4v8c1.5-.7 2.5-2.2 2.5-4zM14 3.2v2.1c2.9.9 5 3.5 5 6.7s-2.1 5.8-5 6.7v2.1c4-.9 7-4.5 7-8.8s-3-7.9-7-8.8z"/></svg>
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ MESSAGES SCREEN ============ -->
+<div id="screen-messages" class="screen">
+  <div class="msg-header">
+    <button id="msg-back" class="back-btn">‹</button>
+    <div class="msg-peer">
+      <div class="msg-peer-avatar"><canvas id="avatar-canvas-2" width="80" height="80"></canvas></div>
+      <div>
+        <div class="msg-peer-name">Aria <span class="sim-tag">AI · SIM</span></div>
+        <div id="msg-peer-status" class="msg-peer-status">in her room</div>
+      </div>
+    </div>
+    <button id="msg-call-btn" class="mini-call-btn" title="Video call">
+      <svg viewBox="0 0 24 24"><path d="M17 10.5V7c0-.6-.4-1-1-1H4c-.6 0-1 .4-1 1v10c0 .6.4 1 1 1h12c.6 0 1-.4 1-1v-3.5l4 4v-11l-4 4z"/></svg>
+    </button>
+  </div>
+  <div id="msg-thread" class="msg-thread"></div>
+  <div id="typing-row" class="typing hidden"><span></span><span></span><span></span></div>
+  <div class="msg-input-row">
+    <input id="msg-input" type="text" placeholder="Message Aria…" autocomplete="off">
+    <button id="msg-send" class="round-btn send">➤</button>
+  </div>
+</div>
+
+<!-- ============ INCOMING CALL OVERLAY ============ -->
+<div id="incoming" class="overlay hidden">
+  <div class="incoming-card">
+    <div class="avatar-ring ringing"><canvas id="avatar-canvas-3" width="200" height="200"></canvas></div>
+    <div class="incoming-name">Aria</div>
+    <div class="incoming-sub">Incoming video call · fictional AI</div>
+    <div id="incoming-reason" class="incoming-reason"></div>
+    <div class="incoming-actions">
+      <button id="btn-decline" class="round-btn big end">✕</button>
+      <button id="btn-accept" class="round-btn big accept">✓</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ SETTINGS OVERLAY ============ -->
+<div id="settings" class="overlay hidden">
+  <div class="settings-card">
+    <h2>Settings</h2>
+    <label class="setting-row">
+      <span>Aria's voice (speech synthesis)</span>
+      <input type="checkbox" id="set-tts" checked>
+    </label>
+    <label class="setting-row">
+      <span>Subtitles during calls</span>
+      <input type="checkbox" id="set-captions" checked>
+    </label>
+    <label class="setting-row">
+      <span>Aria may call you</span>
+      <input type="checkbox" id="set-incoming" checked>
+    </label>
+    <label class="setting-row column">
+      <span>Anthropic API key <em>(optional — gives Aria a real AI brain for open conversation; stored only in your browser. Note: works when the game is hosted on a regular website — pages published on claude.ai block outside connections, so the key can't work there.)</em></span>
+      <input type="password" id="set-apikey" placeholder="sk-ant-…">
+    </label>
+    <div class="settings-danger">
+      <button id="btn-reset-world" class="danger-btn">Reset world &amp; memories</button>
+    </div>
+    <button id="settings-close" class="primary-btn">Done</button>
+  </div>
+</div>
+
+<div id="toast" class="toast hidden"></div>
+
+<script type="module" src="js/main.js"></script>
+</body>
+</html>
