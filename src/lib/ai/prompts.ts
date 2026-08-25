@@ -93,3 +93,46 @@ export function extractMemoryDirectives(text: string): { cleaned: string; memori
     .trimEnd();
   return { cleaned, memories };
 }
+
+/* ───────────────────────────────── Math Mode ─────────────────────────────── */
+
+interface MathPromptOptions {
+  /** Full worked steps, or just the answer. */
+  steps: boolean;
+  /** Student level from Settings, when set. */
+  level?: string;
+  /** A verified answer from the local engine, when there is one. */
+  knownAnswer?: string;
+}
+
+/**
+ * System prompt for Math Mode.
+ *
+ * Kept deliberately short. Every token here is read before the first token of
+ * the answer comes back, so prompt length is latency — this is roughly a fifth
+ * the size of the general tutor prompt.
+ */
+export function buildMathPrompt(opts: MathPromptOptions): string {
+  const lines: string[] = [
+    "You are a fast, precise math engine for a student. Answer only the math question given.",
+    "Rules: compute carefully and verify before answering; never invent a result; if the question is ambiguous, state the assumption in one short line and solve it anyway.",
+    "Use LaTeX for all notation ($...$ inline, $$...$$ display). No greetings, no preamble, no follow-up questions.",
+  ];
+
+  if (opts.steps) {
+    lines.push(
+      "Format: start with **Answer:** and the result on the first line, then `---`, then numbered steps that are short enough to scan — one operation and its reason per step. Finish with a one-line check (substitute back or estimate)."
+    );
+  } else {
+    lines.push("Format: give the final answer only — one line, no working shown, no explanation.");
+  }
+
+  if (opts.knownAnswer) {
+    lines.push(
+      `A verified computation already produced this answer: ${opts.knownAnswer}. Explain how to reach it. Do not contradict it; if it is genuinely wrong, say so explicitly and give the correct one.`
+    );
+  }
+  if (opts.level) lines.push(`Pitch the explanation for this level: ${opts.level}.`);
+
+  return lines.join("\n");
+}

@@ -2,6 +2,7 @@ import Link from "next/link";
 import {
   ArrowRight,
   Bot,
+  Calculator,
   Flame,
   GraduationCap,
   Layers,
@@ -86,12 +87,20 @@ export default async function HomePage() {
               : "Welcome to your personal AI tutor. Start your first lesson to begin tracking your progress."}
           </p>
         </div>
-        <Link
-          href="/tutor"
-          className="inline-flex items-center gap-2 rounded-xl bg-accent px-4 py-2.5 text-sm font-medium text-accent-ink shadow-sm transition hover:opacity-90"
-        >
-          <Bot size={16} /> Ask the tutor
-        </Link>
+        <div className="flex flex-wrap gap-2">
+          <Link
+            href="/math"
+            className="inline-flex items-center gap-2 rounded-xl border border-line bg-surface-raised px-4 py-2.5 text-sm font-medium transition hover:bg-surface-sunken"
+          >
+            <Calculator size={16} /> Math Mode
+          </Link>
+          <Link
+            href="/tutor"
+            className="inline-flex items-center gap-2 rounded-xl bg-accent px-4 py-2.5 text-sm font-medium text-accent-ink shadow-sm transition hover:opacity-90"
+          >
+            <Bot size={16} /> Ask the tutor
+          </Link>
+        </div>
       </div>
 
       {/* Stats — only real data; helpful zeros/empty states otherwise */}

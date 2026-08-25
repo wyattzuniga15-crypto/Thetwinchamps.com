@@ -14,3 +14,13 @@ export function getProvider(): AIProvider {
 export function fastModel(): string | undefined {
   return process.env.AI_FAST_MODEL || undefined;
 }
+
+/**
+ * Model for Math Mode. Math questions are short and the answer format is
+ * fixed, so the smallest capable model is both the cheapest and — because
+ * time-to-first-token scales with model size — by far the fastest.
+ * AI_MATH_MODEL > AI_FAST_MODEL > provider default.
+ */
+export function mathModel(): string | undefined {
+  return process.env.AI_MATH_MODEL || process.env.AI_FAST_MODEL || undefined;
+}

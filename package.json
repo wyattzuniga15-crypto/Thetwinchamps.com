@@ -2,13 +2,14 @@
   "name": "ai-education-tutor",
   "version": "1.0.0",
   "private": true,
-  "description": "AI Education Tutor — a personal AI tutor for every subject",
+  "description": "AI Education Tutor \u2014 a personal AI tutor for every subject",
   "scripts": {
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test:math": "tsc src/lib/math/solve.ts --outDir .test-build --module es2022 --target es2022 --moduleResolution bundler --strict && node scripts/math-selftest.mjs"
   },
   "dependencies": {
     "better-sqlite3": "^11.10.0",

@@ -6,6 +6,7 @@ import { usePathname, useRouter } from "next/navigation";
 import {
   BookOpen,
   Bot,
+  Calculator,
   Check,
   GraduationCap,
   Home,
@@ -33,6 +34,7 @@ interface Convo {
 const NAV = [
   { href: "/", label: "Home", icon: Home },
   { href: "/tutor", label: "AI Tutor", icon: Bot },
+  { href: "/math", label: "Math Mode", icon: Calculator },
   { href: "/subjects", label: "Subjects", icon: BookOpen },
   { href: "/study", label: "Study Mode", icon: GraduationCap },
   { href: "/quiz", label: "Quiz", icon: ListChecks },

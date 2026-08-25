@@ -10,6 +10,12 @@ vocabulary, foreign languages, study skills, test prep, homework help, and resea
 
 ## Features
 
+- **Math Mode** — the fastest path to a math answer. A deterministic engine
+  (`src/lib/math/solve.ts`) parses and solves arithmetic, linear and quadratic
+  equations, percents, and number theory **in the browser, on every keystroke** —
+  the answer is on screen before you press Enter, with no request and no model
+  tokens. Questions it cannot solve with certainty fall through to the AI. Every
+  result shows which tier answered it and how long that took.
 - **AI Tutor chat** — streaming responses, Markdown + LaTeX math + syntax-highlighted code,
   chat history with search/rename/delete, copy, regenerate, stop generation, timestamps.
 - **Subjects** — 10 subject areas with curated topic launchers, each opening a focused
@@ -63,6 +69,7 @@ npm run dev                # http://localhost:3000
 | `AI_PROVIDER` | `anthropic` | `anthropic` or `openai` (any OpenAI-compatible API) |
 | `AI_MODEL` | `claude-sonnet-5` | Main tutor model |
 | `AI_FAST_MODEL` | (main model) | Cheap model for chat titles / grading |
+| `AI_MATH_MODEL` | (`AI_FAST_MODEL`) | Model for Math Mode's fallback tier |
 | `OPENAI_API_KEY` / `OPENAI_BASE_URL` | — | Only when `AI_PROVIDER=openai` |
 | `DATA_DIR` | `.data` | Where the SQLite DB and uploads live |
 | `MAX_UPLOAD_MB` | `10` | Upload size limit |
@@ -80,6 +87,15 @@ npm start
   `user_id`, so real authentication can be plugged in later by swapping `src/lib/user.ts`.
 - **AI layer**: `src/lib/ai/` — a small `AIProvider` interface with Anthropic and
   OpenAI-compatible implementations; switch with `AI_PROVIDER`.
+- **Math Mode tiering**: `/api/math` answers from the fastest tier that can be
+  correct — local engine (~0.04 ms, no network), then an in-process answer cache
+  with in-flight de-duplication so identical concurrent questions share one
+  upstream call, then the smallest capable model with a deliberately short
+  system prompt at `temperature: 0`. The local engine is pure TypeScript with no
+  Node APIs, so the exact same code runs client-side and skips the round trip
+  entirely; it verifies every algebraic answer by back-substitution and returns
+  `null` rather than guess, which is what keeps word problems and calculus on
+  the model path.
 - **Security**: keys are server-only; uploads are validated (type, size, magic bytes) and never
   executed; all inputs are length-limited; DB access is parameterized.
 
@@ -90,3 +106,5 @@ npm start
 - `npm start` — serve the production build
 - `npm run lint` — ESLint
 - `npm run typecheck` — TypeScript check
+- `npm run test:math` — self-test for the local math engine (exact answers, plus
+  the questions it must decline; includes a 20k-input fuzz pass)
